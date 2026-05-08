@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NashNumber</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #F5EFE0;
+    --dark: #1A1208;
+    --gold: #C8963E;
+    --rust: #8B3A2A;
+    --sage: #4A6741;
+    --slate: #3D4F5C;
+    --lavender: #6B5B8A;
+    --teal: #2A6B6B;
+    --sienna: #7A4528;
+    --night: #1E1B2E;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  * { -webkit-tap-highlight-color: transparent; }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.6;
+  }
+
+  header {
+    text-align: center;
+    padding: 48px 24px 24px;
+    width: 100%;
+  }
+
+  header h1 {
+    font-family: 'Lora', serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    color: var(--gold);
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+  }
+
+  header p {
+    color: #9A8E76;
+    margin-top: 8px;
+    font-size: 0.95rem;
+    letter-spacing: 0.06em;
+  }
+
+  /* Key selector */
+  .key-selector {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px 24px;
+    max-width: 600px;
+  }
+
+  .key-selector label {
+    color: #9A8E76;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .key-btn {
+    background: transparent;
+    border: 1px solid #3A3020;
+    color: #9A8E76;
+    padding: 6px 14px;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .key-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .key-btn.active { background: var(--gold); border-color: var(--gold); color: var(--dark); font-weight: 700; }
+
+  /* Card deck area */
+  .deck-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 700px;
+  }
+
+  .nav-btn {
+    background: transparent;
+    border: 1px solid #3A3020;
+    color: #9A8E76;
+    width: 44px;
+    height: 44px;
+    border-radius: 2px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .nav-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* THE CARD */
+  .card-container {
+    width: min(380px, 90vw);
+    height: 480px;
+    cursor: pointer;
+    flex-shrink: 0;
+    flex-grow: 0;
+    align-self: center;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+  }
+
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #3A3020;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  /* Front visible by default */
+  .card-front {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+    z-index: 2;
+  }
+  .card-back {
+    opacity: 0;
+    transform: scale(0.97);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Flipped state */
+  .card-inner.flipped .card-front {
+    opacity: 0;
+    transform: scale(0.97);
+    pointer-events: none;
+  }
+  .card-inner.flipped .card-back {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+
+  /* Front of card */
+  .card-front {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+
+  .card-accent-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+  }
+
+  .card-number-big {
+    font-family: 'Lora', serif;
+    font-size: 9rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    opacity: 0.95;
+  }
+
+  .card-number-name {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 1.2rem;
+    margin-top: 8px;
+    opacity: 0.9;
+  }
+
+  .card-emoji {
+    font-size: 3.5rem;
+    margin: 20px 0 12px;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+  }
+
+  .card-feeling {
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    opacity: 0.9;
+    text-align: center;
+    max-width: 260px;
+    line-height: 1.7;
+  }
+
+  .card-key-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .card-flip-hint {
+    position: absolute;
+    bottom: 16px;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.5;
+  }
+
+  /* Back of card */
+  .card-back {
+    display: flex;
+    flex-direction: column;
+    padding: 28px;
+    overflow: hidden;
+  }
+
+  .back-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 10px;
+  }
+
+  .back-number-small {
+    font-family: 'Lora', serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .back-chord-name {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 1rem;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  .back-key-chord {
+    text-align: right;
+  }
+
+  .back-key-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 1;
+    margin-bottom: 4px;
+    color: var(--gold);
+  }
+
+  .back-chord {
+    font-family: 'Lora', serif;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .back-section {
+    margin-bottom: 9px;
+  }
+
+  .back-section-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    color: var(--gold);
+    margin-bottom: 3px;
+    font-weight: 600;
+  }
+
+  .back-section-content {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    opacity: 0.92;
+    font-weight: 400;
+  }
+
+  .notes-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .note-pill {
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 2px;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+  }
+
+  .song-examples {
+    font-style: italic;
+    font-family: 'Lora', serif;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    opacity: 0.7;
+  }
+
+  /* Progress */
+  .progress-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+  }
+
+  .progress-count {
+    color: #9A8E76;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .progress-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #3A3020;
+    transition: background 0.3s;
+    cursor: pointer;
+  }
+
+  .dot.active { background: var(--gold); }
+  .dot.visited { background: #6A5A3A; }
+
+  /* Mode selector */
+  .mode-bar {
+    display: flex;
+    gap: 12px;
+    padding: 0 24px 24px;
+  }
+
+  .mode-btn {
+    background: transparent;
+    border: 1px solid #3A3020;
+    color: #9A8E76;
+    padding: 6px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .mode-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .mode-btn.active { background: #2A1F0A; border-color: var(--gold); color: var(--gold); }
+
+  /* Nashville staff decoration */
+  .staff-decoration {
+    width: 100%;
+    max-width: 600px;
+    height: 40px;
+    margin: 8px 0;
+    opacity: 0.12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 0 40px;
+  }
+
+  .staff-line {
+    flex: 1;
+    height: 1px;
+    background: var(--gold);
+    position: relative;
+  }
+
+  .staff-note {
+    color: var(--gold);
+    font-size: 1.4rem;
+    margin: 0 6px;
+  }
+
+  footer {
+    color: #4A4030;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 24px;
+    text-align: center;
+  }
+
+  /* Animations */
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-container { animation: cardIn 0.4s ease; }
+
+  .card-inner.shake {
+    animation: shake 0.3s ease;
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NashNumber</h1>
+  <p>Learn the Nashville Number System</p>
+</header>
+
+<div class="staff-decoration">
+  <div class="staff-line"></div>
+  <span class="staff-note">♩</span>
+  <div class="staff-line"></div>
+  <span class="staff-note">♪</span>
+  <div class="staff-line"></div>
+  <span class="staff-note">♩</span>
+  <div class="staff-line"></div>
+  <span class="staff-note">♫</span>
+  <div class="staff-line"></div>
+</div>
+
+<div class="key-selector">
+  <label>Choose a Key</label>
+  <div id="keyBtns"></div>
+  <button class="key-btn" id="randomKeyBtn" onclick="randomKey()" style="margin-top:6px;border-color:#6A5A3A;letter-spacing:0.08em;">⚄ Random</button>
+</div>
+
+<div class="mode-bar">
+  <button class="mode-btn active" onclick="setMode('study')" id="modeStudy">Study</button>
+  <button class="mode-btn" onclick="setMode('quiz')" id="modeQuiz">Quiz</button>
+  <button class="mode-btn" onclick="setMode('shuffle')" id="modeShuffle">Shuffle</button>
+  <button class="mode-btn" id="soundToggle" onclick="toggleSound()" style="margin-left:8px;border-color:#3A3020;">🔇 Sound</button>
+</div>
+
+<div id="soundControls" style="display:none;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;padding:0 24px 12px;">
+  <button class="key-btn" id="btnPiano" onclick="setInstrument('piano')" style="border-color:var(--gold);color:var(--gold);">🎹 Piano</button>
+  <button class="key-btn" id="btnGuitar" onclick="setInstrument('guitar')" style="">🎸 Guitar</button>
+  <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
+    <span style="font-size:0.72rem;color:#6A5A3A;letter-spacing:0.05em;">VOL</span>
+    <input type="range" min="0.1" max="1" step="0.05" value="0.75"
+      oninput="setVolume(this.value)"
+      style="width:80px;accent-color:var(--gold);cursor:pointer;">
+    <span id="volLabel" style="font-size:0.72rem;color:#9A8E76;min-width:32px;">75%</span>
+  </div>
+</div>
+
+<div id="modeDesc" style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#6A5A3A;padding:0 24px 12px;text-align:center;"></div>
+
+<!-- Quiz answer buttons -->
+<div id="quizBtns" style="display:none;flex-wrap:wrap;justify-content:center;gap:8px;padding:0 24px 16px;max-width:500px;"></div>
+
+<!-- Score overlay -->
+<div id="scoreOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,8,4,0.92);z-index:200;align-items:center;justify-content:center;"></div>
+
+<div class="deck-area">
+  <button class="nav-btn" onclick="prevCard()">←</button>
+  <div class="card-container" id="cardContainer" onclick="flipCard(event)" tabindex="-1" style="outline:none;">
+    <div class="card-inner" id="cardInner">
+      <div class="card-face card-front" id="cardFront"></div>
+      <div class="card-face card-back" id="cardBack"></div>
+    </div>
+  </div>
+  <button class="nav-btn" onclick="nextCard()">→</button>
+</div>
+
+<div class="progress-area">
+  <span class="progress-count" id="progressCount"></span>
+  <div class="progress-dots" id="progressDots"></div>
+  <span id="quizTimer" style="font-size:0.78rem;color:#6A5A3A;min-width:40px;text-align:right;display:none;"></span>
+</div>
+
+<div class="staff-decoration">
+  <div class="staff-line"></div>
+  <span class="staff-note">𝄇</span>
+  <div class="staff-line"></div>
+</div>
+
+<footer>tap card to reveal · arrows to navigate · choose key above</footer>
+
+<script>
+const KEYS = ['C','G','D','A','E','B','F','Bb','Eb','Ab','Db'];
+const SCALE_STEPS = [0,2,4,5,7,9,11];
+
+function getScaleNotes(key) {
+  const roots = { C:0,G:7,D:2,A:9,E:4,B:11,F:5,Bb:10,Eb:3,Ab:8,Db:1 };
+  const root = roots[key];
+  return SCALE_STEPS.map(s => {
+    const noteIdx = (root + s) % 12;
+    const names = ['C','C#/Db','D','Eb','E','F','F#/Gb','G','Ab','A','Bb','B'];
+    return names[noteIdx];
+  });
+}
+
+const NUMBERS = [
+  { num:'1', name:'The Tonic', roman:'I', quality:'Major', color:'#C8963E', bgColor:'#1C1508', accentColor:'#C8963E', emoji:'🏠', feeling:'Home · Stability · Resolution · Arrival', description:'The home base. Every song begins or ends here. It\'s the "answer" — the place everything resolves to. A feeling of complete rest.', songs:'"Take Me Home, Country Roads" (W. Denver) — the 1 is where you exhale.', function:'Tonic — establishes the key center' },
+  { num:'2', name:'The Supertonic', roman:'II', quality:'Minor', color:'#6B8A7A', bgColor:'#080F0C', accentColor:'#4A8A6A', emoji:'🌊', feeling:'Gentle tension · Wistfulness · Movement beginning', description:'Rarely the star, but essential in motion. The 2m creates a mild pull toward the 5. Often used in ii–V–I jazz movement. Melancholic and searching.', songs:'The "Dm" in C major — the 2 chord in countless country ballads adds a soft ache.', function:'Predominant — leads smoothly toward the 5' },
+  { num:'3', name:'The Mediant', roman:'III', quality:'Minor', color:'#7A6B8A', bgColor:'#0C0A10', accentColor:'#7A5A9A', emoji:'🌙', feeling:'Dreamlike · Color · Surprise · Bittersweet', description:'The mysterious middle child. Shares two notes with the 1 chord, giving it a chameleon quality — it can substitute for the 1 or create unexpected color. Moody and evocative.', songs:'Bridges and interludes often land on the 3m for emotional depth — "Crazy" (W. Nelson).', function:'Tonic substitute — shares notes with the 1 chord' },
+  { num:'4', name:'The Subdominant', roman:'IV', quality:'Major', color:'#4A8A4A', bgColor:'#060F06', accentColor:'#5A9A5A', emoji:'🌿', feeling:'Lift · Openness · Yearning · Hymn-like warmth', description:'The great uplifter. When you move from 1 to 4, you feel the world open up. Gospel, country, rock — the 4 chord is the universal chord of reaching skyward. Warm and expansive.', songs:'"Amazing Grace," every chorus that opens up — the 1–4 move is sacred.', function:'Subdominant — motion away from home' },
+  { num:'5', name:'The Dominant', roman:'V', quality:'Major', color:'#8A3A2A', bgColor:'#0F0805', accentColor:'#C04A30', emoji:'⚡', feeling:'Tension · Anticipation · Drive · Need to resolve', description:'The engine of music. The 5 chord creates irresistible pull back to the 1. It\'s the cliffhanger, the held breath, the question mark. Nothing sounds more unfinished than stopping on the 5.', songs:'"Stand By Your Man" (T. Wynette) — that 5 chord pulls you home every time.', function:'Dominant — creates tension that resolves to the 1' },
+  { num:'6', name:'The Submediant', roman:'VI', quality:'Minor', color:'#3D6A8A', bgColor:'#060C10', accentColor:'#3A7AAA', emoji:'🌧️', feeling:'Longing · Melancholy · Depth · Emotional resonance', description:'The heartache chord. The 6m is the relative minor of the key — it shares DNA with the 1 but tilts everything into shadow. This is where country music lives emotionally. Deeply felt.', songs:'"He Stopped Loving Her Today" (G. Jones) — the 6m is sorrow made sound.', function:'Tonic substitute / relative minor — emotional depth' },
+  { num:'7', name:'The Leading Tone', roman:'VII', quality:'Diminished / Major*', color:'#8A7A2A', bgColor:'#0F0E05', accentColor:'#AA9A3A', emoji:'🌅', feeling:'Quirky · Passing · Unresolved · Bluesy grit', description:'The wildcard. In Nashville, the flat-7 (♭VII major) is common — borrowed from the mixolydian mode. It sounds rootsy, Americana, slightly unresolved. Adds grit and character.', songs:'"With a Little Help from My Friends" — the ♭VII gives that earthy, rebellious feel.', function:'♭VII = bluesy color; natural VII° = leading tension' }
+];
+
+const MODE_INFO = {
+  study:   '1 → 7 in order · tap to flip · learn the feel of each',
+  quiz:    'Guess the number from the chord name · tap to check',
+  shuffle: 'Random order every round · builds real recall'
+};
+
+let currentKey = 'G';
+let currentIdx = 0;
+let isFlipped = false;
+let mode = 'study';
+let visited = new Set([0]);
+let deck = [...NUMBERS]; // may be shuffled
+let quizAnswered = false;
+let quizCorrect = false;
+let quizStartTime = null;
+let quizTimerInterval = null;
+
+// ── Mode switching ────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode' + m.charAt(0).toUpperCase() + m.slice(1)).classList.add('active');
+  document.getElementById('modeDesc').textContent = MODE_INFO[m];
+
+  if (m === 'quiz') {
+    quizScore = 0;
+    quizTotal = 0;
+    // 14 questions: 2 shuffled passes through all 7 numbers
+    const r1 = [...NUMBERS].sort(() => Math.random() - 0.5);
+    const r2 = [...NUMBERS].sort(() => Math.random() - 0.5);
+    deck = [...r1, ...r2];
+    // Start timer
+    quizStartTime = Date.now();
+    clearInterval(quizTimerInterval);
+    quizTimerInterval = setInterval(updateTimerDisplay, 1000);
+  } else if (m === 'shuffle') {
+    clearInterval(quizTimerInterval);
+    deck = [...NUMBERS].sort(() => Math.random() - 0.5);
+  } else {
+    clearInterval(quizTimerInterval);
+    deck = [...NUMBERS];
+  }
+
+  // Show/hide nav arrows based on mode
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.style.visibility = m === 'quiz' ? 'hidden' : 'visible';
+  });
+
+  currentIdx = 0;
+  visited = new Set([0]);
+  isFlipped = false;
+  quizAnswered = false;
+  // Show timer only in quiz mode
+  const timerEl = document.getElementById('quizTimer');
+  if (timerEl) timerEl.style.display = m === 'quiz' ? 'inline' : 'none';
+  renderCard();
+  renderDots();
+  renderQuizBtns();
+}
+
+// ── Key buttons ───────────────────────────────────────────────
+function initKeyBtns() {
+  const c = document.getElementById('keyBtns');
+  c.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:center;gap:8px;';
+  KEYS.forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'key-btn' + (k === currentKey ? ' active' : '');
+    b.textContent = k;
+    b.onclick = () => {
+      currentKey = k;
+      document.querySelectorAll('.key-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      isFlipped = false;
+      quizAnswered = false;
+      renderCard();
+      renderQuizBtns();
+    };
+    c.appendChild(b);
+  });
+}
+
+// ── Quiz state ────────────────────────────────────────────────
+let quizChoices = []; // ordered choices for current card
+let quizScore = 0;
+let quizTotal = 0;
+
+// ── Quiz buttons ──────────────────────────────────────────────
+function renderQuizBtns() {
+  const wrap = document.getElementById('quizBtns');
+  if (mode !== 'quiz') { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = '';
+  quizAnswered = false;
+
+  const correctCard = deck[currentIdx];
+  const others = NUMBERS.filter(n => n.num !== correctCard.num);
+  const distractors = others.sort(() => Math.random() - 0.5).slice(0, 3);
+  quizChoices = [...distractors, correctCard].sort(() => Math.random() - 0.5);
+
+  quizChoices.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'key-btn';
+    b.style.cssText = 'font-size:1.1rem;padding:8px 20px;position:relative;';
+    b.dataset.num = c.num;
+    // Show keyboard shortcut hint
+    b.innerHTML = `<span style="position:absolute;top:3px;left:6px;font-size:0.55rem;opacity:0.45;letter-spacing:0;">${i+1}</span>${c.num}`;
+    b.onclick = () => submitQuizAnswer(c.num);
+    wrap.appendChild(b);
+  });
+
+  // hint in the flip area
+  updateFlipHint();
+}
+
+function updateFlipHint() {
+  if (mode !== 'quiz') return;
+  const hint = document.querySelector('.card-flip-hint');
+  if (!hint) return;
+  hint.textContent = quizAnswered ? 'space → next question' : 'press 1–4 to answer';
+}
+
+function submitQuizAnswer(chosenNum) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  quizTotal++;
+
+  const correctCard = deck[currentIdx];
+  const isCorrect = chosenNum === correctCard.num;
+  if (isCorrect) quizScore++;
+
+  const wrap = document.getElementById('quizBtns');
+  wrap.querySelectorAll('button').forEach(btn => {
+    if (btn.dataset.num === correctCard.num) {
+      btn.style.background = '#1A3A0A';
+      btn.style.borderColor = '#5A9A3A';
+      btn.style.color = '#9ADA6A';
+    } else if (btn.dataset.num === chosenNum) {
+      btn.style.background = '#3A0A0A';
+      btn.style.borderColor = '#9A3A3A';
+      btn.style.color = '#DA6A6A';
+    } else {
+      btn.style.opacity = '0.3';
+    }
+  });
+
+  setTimeout(() => {
+    isFlipped = true;
+    document.getElementById('cardInner').classList.add('flipped');
+    updateFlipHint();
+    // Play the chord on reveal
+    const card = deck[currentIdx];
+    const notes = getScaleNotes(currentKey);
+    const chordNote = notes[parseInt(card.num) - 1];
+    playChord(chordNote, card.quality);
+  }, 400);
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('quizTimer');
+  if (el && quizStartTime) {
+    el.textContent = formatTime(Date.now() - quizStartTime);
+  }
+}
+
+function showScoreScreen() {
+  clearInterval(quizTimerInterval);
+  const elapsed = quizStartTime ? Date.now() - quizStartTime : 0;
+  const pct = Math.round((quizScore / quizTotal) * 100);
+
+  let gradeEmoji, gradeText, gradeColor;
+  if (pct === 100)      { gradeEmoji = '🏆'; gradeText = 'Perfect!';        gradeColor = '#F0C060'; }
+  else if (pct >= 85)   { gradeEmoji = '🌟'; gradeText = 'Excellent';       gradeColor = '#8ADA6A'; }
+  else if (pct >= 70)   { gradeEmoji = '👍'; gradeText = 'Good work';       gradeColor = '#6AAADA'; }
+  else if (pct >= 50)   { gradeEmoji = '📖'; gradeText = 'Keep studying';   gradeColor = '#DAB06A'; }
+  else                  { gradeEmoji = '🎸'; gradeText = 'Keep practicing'; gradeColor = '#DA7A6A'; }
+
+  const overlay = document.getElementById('scoreOverlay');
+  overlay.innerHTML = `
+    <div style="background:#1E1810;border:1px solid #4A3A20;border-radius:8px;padding:40px 36px;text-align:center;max-width:360px;width:90%;font-family:'DM Sans',sans-serif;">
+      <div style="font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:20px;font-weight:600;">Quiz Complete · Key of ${currentKey}</div>
+
+      <div style="font-family:'Lora',serif;font-size:5.5rem;font-weight:700;color:var(--gold);line-height:1;">${quizScore}<span style="font-size:2rem;color:#6A5A3A;">/${quizTotal}</span></div>
+
+      <div style="margin:16px 0 6px;">
+        <span style="font-size:1.8rem;">${gradeEmoji}</span>
+        <span style="display:block;font-size:1.3rem;font-weight:600;color:${gradeColor};margin-top:6px;">${gradeText}</span>
+      </div>
+
+      <div style="font-size:1rem;color:#C8B88A;margin-bottom:6px;font-weight:500;">${pct}% correct</div>
+      <div style="font-size:0.85rem;color:#7A6A4A;margin-bottom:28px;">⏱ Finished in ${formatTime(elapsed)}</div>
+
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="key-btn" onclick="retryQuiz()" style="padding:10px 24px;font-size:0.9rem;border-color:var(--gold);color:var(--gold);font-weight:600;">↺ Retry</button>
+        <button class="key-btn" onclick="retryQuiz(true)" style="padding:10px 24px;font-size:0.9rem;color:#C8B88A;font-weight:600;">New Key</button>
+      </div>
+    </div>
+  `;
+  overlay.style.display = 'flex';
+}
+
+function retryQuiz(newKey) {
+  document.getElementById('scoreOverlay').style.display = 'none';
+  if (newKey) randomKey();
+  else setMode('quiz');
+}
+
+// ── Card rendering ────────────────────────────────────────────
+function renderCard() {
+  const card = deck[currentIdx];
+  const notes = getScaleNotes(currentKey);
+  const chordNote = notes[parseInt(card.num) - 1];
+  const qualityLabel = card.quality.includes('Minor') ? 'm' : card.quality.includes('Dim') ? '°' : '';
+  const cardInner = document.getElementById('cardInner');
+  cardInner.classList.toggle('flipped', isFlipped);
+
+  // Play chord when card appears
+  playChord(chordNote, card.quality);
+
+  // ── FRONT ──
+  const front = document.getElementById('cardFront');
+  front.style.background = card.bgColor;
+  front.style.color = card.color;
+
+  if (mode === 'quiz') {
+    front.innerHTML = `
+      <div class="card-accent-line" style="background:${card.accentColor}"></div>
+      <div class="card-key-badge" style="color:${card.accentColor};opacity:1;">KEY OF ${currentKey}</div>
+      <div style="font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#E8DFC8;opacity:0.6;margin-bottom:16px;">What number is this chord?</div>
+      <div class="card-number-big" style="color:${card.accentColor};font-size:6rem;">${chordNote}${qualityLabel}</div>
+      <div class="card-emoji">${card.emoji}</div>
+      <div class="card-feeling" style="color:#E8DFC8;opacity:0.85;">${card.feeling}</div>
+      <div class="card-flip-hint" style="color:#E8DFC8;">choose a number above · tap to reveal</div>
+    `;
+  } else {
+    front.innerHTML = `
+      <div class="card-accent-line" style="background:${card.accentColor}"></div>
+      <div class="card-key-badge" style="color:${card.accentColor};opacity:1;">KEY OF ${currentKey}</div>
+      <div class="card-number-big" style="color:${card.accentColor};">${card.num}</div>
+      <div class="card-number-name" style="color:#E8DFC8;opacity:0.9;">${card.name}</div>
+      <div class="card-emoji">${card.emoji}</div>
+      <div class="card-feeling" style="color:#E8DFC8;opacity:0.85;">${card.feeling}</div>
+      <div class="card-flip-hint" style="color:#E8DFC8;">tap to reveal</div>
+    `;
+  }
+
+  // ── BACK ──
+  const back = document.getElementById('cardBack');
+  back.style.background = '#110E08';
+  back.style.color = '#E8DFC8';
+  back.innerHTML = `
+    <div class="card-accent-line" style="background:${card.accentColor}"></div>
+    <div class="back-header">
+      <div>
+        <div class="back-number-small" style="color:${card.color}">${card.num}</div>
+        <div class="back-chord-name">${card.name}</div>
+      </div>
+      <div class="back-key-chord">
+        <div class="back-key-label">In Key of ${currentKey}</div>
+        <div class="back-chord" style="color:${card.color}">${chordNote}${qualityLabel}</div>
+      </div>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">Scale Degree & Quality</div>
+      <div class="back-section-content">${card.roman} — ${card.quality}</div>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">Function</div>
+      <div class="back-section-content">${card.function}</div>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">Feel</div>
+      <div class="back-section-content">${card.description}</div>
+    </div>
+    <div class="back-section">
+      <div class="back-section-label">In Practice</div>
+      <div class="song-examples">${card.songs}</div>
+    </div>
+  `;
+
+  renderDots();
+  renderCount();
+}
+
+function renderDots() {
+  const dots = document.getElementById('progressDots');
+  dots.innerHTML = '';
+  deck.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === currentIdx ? ' active' : visited.has(i) && i !== currentIdx ? ' visited' : '');
+    d.onclick = () => { currentIdx = i; visited.add(i); isFlipped = false; quizAnswered = false; renderCard(); renderQuizBtns(); };
+    dots.appendChild(d);
+  });
+}
+
+function renderCount() {
+  document.getElementById('progressCount').textContent = `${currentIdx + 1} / ${deck.length}`;
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function flipCard(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  if (mode === 'quiz') {
+    if (quizAnswered) nextCard();
+    return;
+  }
+  isFlipped = !isFlipped;
+  document.getElementById('cardInner').classList.toggle('flipped', isFlipped);
+  document.getElementById('cardContainer').blur();
+  // Play chord on flip to back (reveal)
+  if (isFlipped) {
+    const card = deck[currentIdx];
+    const notes = getScaleNotes(currentKey);
+    const chordNote = notes[parseInt(card.num) - 1];
+    playChord(chordNote, card.quality);
+  }
+}
+
+function nextCard() {
+  // In quiz mode, show score after last card
+  if (mode === 'quiz' && currentIdx === deck.length - 1 && quizAnswered) {
+    showScoreScreen();
+    return;
+  }
+  isFlipped = false;
+  quizAnswered = false;
+  currentIdx = (currentIdx + 1) % deck.length;
+  if (mode === 'shuffle' && currentIdx === 0) {
+    deck = [...NUMBERS].sort(() => Math.random() - 0.5);
+  }
+  visited.add(currentIdx);
+  renderCard();
+  renderQuizBtns();
+  animateCard();
+}
+
+function prevCard() {
+  isFlipped = false;
+  quizAnswered = false;
+  currentIdx = (currentIdx - 1 + deck.length) % deck.length;
+  visited.add(currentIdx);
+  renderCard();
+  renderQuizBtns();
+  animateCard();
+}
+
+function animateCard() {
+  const c = document.getElementById('cardContainer');
+  c.style.animation = 'none';
+  requestAnimationFrame(() => { c.style.animation = 'cardIn 0.35s ease'; });
+}
+
+document.addEventListener('keydown', e => {
+  if (mode === 'quiz') {
+    // 1–4 select quiz answer
+    if (['1','2','3','4'].includes(e.key) && !quizAnswered) {
+      const idx = parseInt(e.key) - 1;
+      if (quizChoices[idx]) submitQuizAnswer(quizChoices[idx].num);
+      return;
+    }
+    // Space or right arrow advances after answering
+    if ((e.key === ' ' || e.key === 'ArrowRight') && quizAnswered) {
+      e.preventDefault();
+      nextCard();
+      return;
+    }
+    e.key === ' ' && e.preventDefault(); // block space before answering
+  } else {
+    if (e.key === 'ArrowRight') nextCard();
+    if (e.key === 'ArrowLeft') prevCard();
+    if (e.key === ' ') { e.preventDefault(); flipCard(e); }
+  }
+});
+
+function randomKey() {
+  const others = KEYS.filter(k => k !== currentKey);
+  const picked = others[Math.floor(Math.random() * others.length)];
+  currentKey = picked;
+  document.querySelectorAll('.key-btn').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.key-btn').forEach(b => {
+    if (b.textContent === picked) b.classList.add('active');
+  });
+  isFlipped = false;
+  quizAnswered = false;
+  renderCard();
+  renderQuizBtns();
+}
+
+// ── Audio Engine ──────────────────────────────────────────────
+let soundEnabled = false;
+let audioCtx = null;
+let masterVolume = 0.75;
+let instrumentMode = 'piano';
+
+// Sample buffers cache — loaded once, reused
+const sampleBuffers = { piano: {}, guitar: {} };
+let samplesLoaded = { piano: false, guitar: false };
+let samplesLoading = { piano: false, guitar: false };
+
+// Semitone distances from C3 for each note name
+// We use C3 as our base sample — all other notes are pitch-shifted from it
+const SEMITONE_FROM_C = {
+  'C': 0, 'C#/Db': 1, 'D': 2, 'Eb': 3, 'E': 4, 'F': 5,
+  'F#/Gb': 6, 'G': 7, 'Ab': 8, 'A': 9, 'Bb': 10, 'B': 11
+};
+
+// ── File names to drop in /samples/piano/ and /samples/guitar/ ──
+// Piano needs: C3.wav Cs3.wav D3.wav Eb3.wav E3.wav F3.wav
+//              Fs3.wav G3.wav Ab3.wav A3.wav Bb3.wav B3.wav
+// Guitar needs only 4 files (code pitch-shifts the rest):
+//   C3.wav D3.wav G3.wav B3.wav
+const SAMPLE_FILES = {
+  piano: {
+    'C':     'samples/piano/C3.wav',
+    'C#/Db': 'samples/piano/Cs3.wav',
+    'D':     'samples/piano/D3.wav',
+    'Eb':    'samples/piano/Eb3.wav',
+    'E':     'samples/piano/E3.wav',
+    'F':     'samples/piano/F3.wav',
+    'F#/Gb': 'samples/piano/Fs3.wav',
+    'G':     'samples/piano/G3.wav',
+    'Ab':    'samples/piano/Ab3.wav',
+    'A':     'samples/piano/A3.wav',
+    'Bb':    'samples/piano/Bb3.wav',
+    'B':     'samples/piano/B3.wav',
+  },
+  guitar: {
+    // All 12 notes mapped to the closest of our 4 samples.
+    // The code will pitch-shift by playbackRate to hit the exact pitch.
+    // C=0, Cs=1, D=2, Eb=3, E=4, F=5, Fs=6, G=7, Ab=8, A=9, Bb=10, B=11
+    'C':     'samples/guitar/C3.wav',   // exact
+    'C#/Db': 'samples/guitar/C3.wav',   // +1 from C
+    'D':     'samples/guitar/D3.wav',   // exact
+    'Eb':    'samples/guitar/D3.wav',   // +1 from D
+    'E':     'samples/guitar/D3.wav',   // +2 from D
+    'F':     'samples/guitar/G3.wav',   // -2 from G
+    'F#/Gb': 'samples/guitar/G3.wav',   // -1 from G
+    'G':     'samples/guitar/G3.wav',   // exact
+    'Ab':    'samples/guitar/G3.wav',   // +1 from G
+    'A':     'samples/guitar/B3.wav',   // -2 from B
+    'Bb':    'samples/guitar/B3.wav',   // -1 from B
+    'B':     'samples/guitar/B3.wav',   // exact
+  }
+};
+
+async function loadSamples(inst) {
+  if (samplesLoaded[inst] || samplesLoading[inst]) return;
+  samplesLoading[inst] = true;
+  const btn = document.getElementById('soundToggle');
+  btn.textContent = '⏳ Loading...';
+
+  const files = SAMPLE_FILES[inst];
+  const entries = Object.entries(files);
+  let loaded = 0;
+
+  await Promise.all(entries.map(async ([note, path]) => {
+    try {
+      const resp = await fetch(path);
+      if (!resp.ok) throw new Error(`Missing: ${path}`);
+      const arrayBuf = await resp.arrayBuffer();
+      sampleBuffers[inst][note] = await audioCtx.decodeAudioData(arrayBuf);
+      loaded++;
+    } catch (e) {
+      console.warn(`Could not load sample: ${path}`, e);
+    }
+  }));
+
+  samplesLoaded[inst] = loaded > 0;
+  samplesLoading[inst] = false;
+  btn.textContent = '🔊 Sound';
+
+  if (loaded === 0) {
+    alert('No sample files found. Make sure your wav files are in the /samples/piano/ and /samples/guitar/ folders. See the instructions in the code.');
+    soundEnabled = false;
+    btn.textContent = '🔇 Sound';
+    document.getElementById('soundControls').style.display = 'none';
+  }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('soundToggle');
+  btn.textContent = soundEnabled ? '🔊 Sound' : '🔇 Sound';
+  btn.style.borderColor = soundEnabled ? 'var(--gold)' : '#3A3020';
+  btn.style.color = soundEnabled ? 'var(--gold)' : '';
+  document.getElementById('soundControls').style.display = soundEnabled ? 'flex' : 'none';
+  if (soundEnabled) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    loadSamples(instrumentMode);
+  }
+}
+
+function setInstrument(inst) {
+  instrumentMode = inst;
+  document.getElementById('btnPiano').style.borderColor  = inst === 'piano'  ? 'var(--gold)' : '#3A3020';
+  document.getElementById('btnPiano').style.color        = inst === 'piano'  ? 'var(--gold)' : '#9A8E76';
+  document.getElementById('btnGuitar').style.borderColor = inst === 'guitar' ? 'var(--gold)' : '#3A3020';
+  document.getElementById('btnGuitar').style.color       = inst === 'guitar' ? 'var(--gold)' : '#9A8E76';
+  if (soundEnabled && audioCtx) loadSamples(inst);
+}
+
+function setVolume(val) {
+  masterVolume = parseFloat(val);
+  document.getElementById('volLabel').textContent = Math.round(masterVolume * 100) + '%';
+}
+
+// Play one sample note, pitch-shifted by `semitones` from the recorded pitch
+function playSampleNote(buffer, semitoneShift, startTime, vol) {
+  if (!buffer) return;
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = Math.pow(2, semitoneShift / 12);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(vol, startTime);
+  gain.gain.setValueAtTime(vol, startTime + 1.5);
+  gain.gain.linearRampToValueAtTime(0, startTime + 3.0);
+  src.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start(startTime);
+  src.stop(startTime + 3.2);
+}
+
+// Semitones from C for each note name
+const SEMITONES = { 'C':0,'C#/Db':1,'D':2,'Eb':3,'E':4,'F':5,'F#/Gb':6,'G':7,'Ab':8,'A':9,'Bb':10,'B':11 };
+
+// For guitar: which of our 4 samples (C=0, D=2, G=7, B=11) is closest to a given semitone
+const GUITAR_SAMPLES = [
+  { note: 'C', semitone: 0,  file: 'samples/guitar/C3.wav' },
+  { note: 'D', semitone: 2,  file: 'samples/guitar/D3.wav' },
+  { note: 'G', semitone: 7,  file: 'samples/guitar/G3.wav' },
+  { note: 'B', semitone: 11, file: 'samples/guitar/B3.wav' },
+];
+
+// Loaded buffers keyed by file path
+const loadedBuffers = {};
+
+async function loadFile(path) {
+  if (loadedBuffers[path]) return loadedBuffers[path];
+  const resp = await fetch(path);
+  if (!resp.ok) throw new Error(`Cannot load: ${path}`);
+  const arrayBuf = await resp.arrayBuffer();
+  loadedBuffers[path] = await audioCtx.decodeAudioData(arrayBuf);
+  return loadedBuffers[path];
+}
+
+async function loadSamples(inst) {
+  if (samplesLoading[inst]) return;
+  samplesLoading[inst] = true;
+  const btn = document.getElementById('soundToggle');
+  btn.textContent = '⏳ Loading...';
+
+  try {
+    if (inst === 'guitar') {
+      await Promise.all(GUITAR_SAMPLES.map(s => loadFile(s.file)));
+    } else {
+      const files = Object.values(SAMPLE_FILES.piano);
+      const unique = [...new Set(files)];
+      await Promise.all(unique.map(f => loadFile(f)));
+    }
+    samplesLoaded[inst] = true;
+  } catch(e) {
+    console.error('Sample load error:', e);
+    alert(`Could not load ${inst} samples. Check the samples folder is next to your HTML file and the files are named correctly.\n\nError: ${e.message}`);
+    soundEnabled = false;
+    document.getElementById('soundControls').style.display = 'none';
+  }
+
+  samplesLoading[inst] = false;
+  btn.textContent = soundEnabled ? '🔊 Sound' : '🔇 Sound';
+}
+
+function playChord(rootName, quality) {
+  if (!soundEnabled || !audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (!samplesLoaded[instrumentMode]) return;
+
+  let intervals;
+  if (quality.includes('Minor'))    intervals = [0, 7, 15, 19, 24];
+  else if (quality.includes('Dim')) intervals = [0, 6, 15, 18, 24];
+  else                              intervals = [0, 7, 16, 19, 24];
+
+  const now = audioCtx.currentTime;
+  const vol = masterVolume * 0.55;
+  const strumGap = instrumentMode === 'guitar' ? 0.065 : 0.02;
+  const rootSemitone = SEMITONES[rootName] ?? 0;
+
+  intervals.forEach((semitones, i) => {
+    const targetSemitone = rootSemitone + semitones; // absolute semitones from C (can exceed 12)
+    let buffer, pitchShift;
+
+    if (instrumentMode === 'guitar') {
+      // Find closest guitar sample, then shift exact number of semitones to target
+      const targetMod = targetSemitone % 12;
+      const octaves = Math.floor(targetSemitone / 12);
+      const closest = GUITAR_SAMPLES.reduce((best, s) => {
+        return Math.abs(s.semitone - targetMod) < Math.abs(best.semitone - targetMod) ? s : best;
+      });
+      buffer = loadedBuffers[closest.file];
+      // Shift = (target note - sample note) + octave adjustment
+      pitchShift = (targetMod - closest.semitone) + (octaves * 12);
+    } else {
+      // Piano: use exact sample for root note, shift for octaves
+      const noteName = Object.keys(SEMITONES).find(k => SEMITONES[k] === targetSemitone % 12);
+      const file = SAMPLE_FILES.piano[noteName] || SAMPLE_FILES.piano['C'];
+      buffer = loadedBuffers[file];
+      const octave = Math.floor(targetSemitone / 12);
+      pitchShift = octave * 12; // shift up by octaves if needed
+    }
+
+    const noteVol = vol * (i === 0 ? 1.2 : 0.8);
+    playSampleNote(buffer, pitchShift, now + i * strumGap, noteVol);
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+initKeyBtns();
+document.getElementById('modeDesc').textContent = MODE_INFO['study'];
+renderCard();
+</script>
+</body>
+</html>

@@ -523,11 +523,11 @@
 <footer>tap card to reveal · arrows to navigate · choose key above</footer>
 
 <script>
-const KEYS = ['C','G','D','A','E','B','F','Bb','Eb','Ab','Db'];
+const KEYS = ['C','G','D','A','E','B','F#','Db','Ab','Eb','Bb','F'];
 const SCALE_STEPS = [0,2,4,5,7,9,11];
 
 function getScaleNotes(key) {
-  const roots = { C:0,G:7,D:2,A:9,E:4,B:11,F:5,Bb:10,Eb:3,Ab:8,Db:1 };
+  const roots = { C:0,G:7,D:2,A:9,E:4,B:11,'F#':6,Db:1,Ab:8,Eb:3,Bb:10,F:5 };
   const root = roots[key];
   return SCALE_STEPS.map(s => {
     const noteIdx = (root + s) % 12;
